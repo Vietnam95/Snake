@@ -72,6 +72,8 @@ int main()
 
 	ControlLogicType enmType = showStartMenu(pServer, pClient);
 	std::shared_ptr<ControlLogic> pControlLogic;
+
+	std::string cmd = "";
 	switch (enmType)
 	{
 	case ControlLogicType::Single:
@@ -81,11 +83,37 @@ int main()
 		// Todo: check server open
 		pControlLogic = std::make_shared<ControlLogic>(enmType, pService, pServer);
 		break;
+		/*while (true)
+		{
+			std::cin >> cmd;
+			if (cmd == "q")
+			{
+				break;
+
+			}
+			else
+			{
+				pServer->requestWrite(cmd);
+			}
+		}*/
 	case ControlLogicType::Client:
-			pControlLogic = std::make_shared<ControlLogic>(enmType, pService, pClient);
+		pControlLogic = std::make_shared<ControlLogic>(enmType, pService, pClient);
 		break;
+		/*while (true)
+		{
+			std::cin >> cmd;
+			if (cmd == "q")
+			{
+				break;
+
+			}
+			else
+			{
+				pClient->requestWrite(cmd);
+			}
+		}*/
 	default:
-			break;
+		break;
 	}
 	if(pControlLogic)
 	pControlLogic->startGame();

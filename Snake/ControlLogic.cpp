@@ -210,7 +210,10 @@ void ControlLogic::startGame()
 				objMsgUpdateDirecReq["Type"] = static_cast<int>(m_enmType);
 				objMsgUpdateDirecReq["Direction"] = static_cast<int>(m_lstSnake[m_enmType]->getDirection());
 
-				m_pMessageQueued->registerMessage(objMsgUpdateDirecReq);
+				// send immediately, don't wait for messagequeue
+				m_pTCPConnect->requestWrite(objMsgUpdateDirecReq.to_string());
+
+				//m_pMessageQueued->registerMessage(objMsgUpdateDirecReq);
 			}
 		}
 		for (const auto& pSnake : m_lstSnake)
@@ -245,12 +248,12 @@ void ControlLogic::startGame()
 			}
 
 			// if snake hit the wall, him die
-			if (pSnake.second->isHitWall())
+			/*if (pSnake.second->isHitWall())
 			{
 				ConsoleFunc::ShowConsoleCursor(true);
 				showEndMenu();
 				break;
-			}
+			}*/
 		}
 		Sleep(m_unSpeed);
 	}
@@ -264,7 +267,6 @@ bool ControlLogic::handleSynchroReq(const jsoncons::json& objSynchro)
 		return false;
 	}
 
-	std::lock_guard<std::mutex> lock(m_Mutex);
 	try
 	{
 		auto jsonSnake = objSynchro.get("Snake").array_range();
@@ -289,6 +291,8 @@ bool ControlLogic::handleSynchroReq(const jsoncons::json& objSynchro)
 
 		lstScore[ControlLogicType::Server] = jsonScore.get(EToString(ControlLogicType::Server)).as<int>();
 		lstScore[ControlLogicType::Client] = jsonScore.get(EToString(ControlLogicType::Client)).as<int>();
+
+		std::lock_guard<std::mutex> lock(m_Mutex);
 
 		m_lstApple = lstApple;
 		m_lstScore = lstScore;
@@ -411,11 +415,12 @@ bool ControlLogic::handleWinningNotice(const jsoncons::json& /*objSynchroReq*/)
 
 bool ControlLogic::handleUpdateDirectionReq(const jsoncons::json& objUpdateDirectionReq)
 {
-	std::lock_guard<std::mutex> lock(m_Mutex);
 	try
 	{
 		ControlLogicType enmType = static_cast<ControlLogicType>(objUpdateDirectionReq.get("Type").as<int>());
 		Direction enmDirection = static_cast<Direction>(objUpdateDirectionReq.get("Direction").as<int>());
+
+		std::lock_guard<std::mutex> lock(m_Mutex);
 		m_lstSnake[enmType]->updateDirection(enmDirection);
 
 		return true;

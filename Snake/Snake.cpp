@@ -52,6 +52,7 @@ void Snake::show()
 // move the snake
 void Snake::move()
 {
+	std::lock_guard<std::mutex> lock(m_Mutex);
 	m_objPrevTail = m_lstSnakePieces.back();
 
 	for (size_t i = m_lstSnakePieces.size() - 1; i > 0; i--)
@@ -72,6 +73,7 @@ void Snake::move()
 // Growing snake when it ate an apple
 void Snake::growing()
 {
+	std::lock_guard<std::mutex> lock(m_Mutex);
 	m_lstSnakePieces.push_back(m_objPrevTail);
 }
 
@@ -126,6 +128,7 @@ Direction Snake::getDirection()
 
 bool Snake::updateDirection(const Direction enmDirection)
 {
+	std::lock_guard<std::mutex> lock(m_Mutex);
 	m_enmDerection = enmDirection;
 
 	return true;
@@ -145,7 +148,6 @@ void Snake::drawHeadnTail()
 
 bool Snake::synchro(const jsoncons::json& objSynchro)
 {
-	std::lock_guard<std::mutex> lock(m_Mutex);
 	try
 	{
 		auto jsonPreTail = objSynchro.get("PreTail");
@@ -161,6 +163,8 @@ bool Snake::synchro(const jsoncons::json& objSynchro)
 			Point objNewPoint(point.get("x").as_int(), point.get("y").as_int());
 			lstNewPoint.push_back(objNewPoint);
 		}
+
+		std::lock_guard<std::mutex> lock(m_Mutex);
 
 		m_objPrevTail = objSynchroTail;
 		m_enmDerection = static_cast<Direction>(nDirection);
