@@ -4,6 +4,7 @@
 #include "Common.h"
 #include "ControlLogic.h"
 #include "TCPConnect.h"
+#include "MessageDef.h"
 
 /*
  * Let's the game start
@@ -81,9 +82,9 @@ int main()
 		break;
 	case ControlLogicType::Server:
 		// Todo: check server open
-		pControlLogic = std::make_shared<ControlLogic>(enmType, pService, pServer);
-		break;
-		/*while (true)
+		//pControlLogic = std::make_shared<ControlLogic>(enmType, pService, pServer);
+		//break;
+		while (true)
 		{
 			std::cin >> cmd;
 			if (cmd == "q")
@@ -93,13 +94,13 @@ int main()
 			}
 			else
 			{
-				pServer->requestWrite(cmd);
+				pServer->requestWrite(std::vector<char>(cmd.begin(), cmd.end()));
 			}
-		}*/
+		}
 	case ControlLogicType::Client:
-		pControlLogic = std::make_shared<ControlLogic>(enmType, pService, pClient);
-		break;
-		/*while (true)
+		//pControlLogic = std::make_shared<ControlLogic>(enmType, pService, pClient);
+		//break;
+		while (true)
 		{
 			std::cin >> cmd;
 			if (cmd == "q")
@@ -109,9 +110,11 @@ int main()
 			}
 			else
 			{
-				pClient->requestWrite(cmd);
+				MsgDirectionUpdateReq msg(ControlLogicType::Client, Direction::down);
+
+				pClient->requestWrite(msg.toBinary());
 			}
-		}*/
+		}
 	default:
 		break;
 	}

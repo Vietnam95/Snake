@@ -23,7 +23,7 @@ public:
     virtual void stop() = 0;
 
     // Send message
-    virtual bool requestWrite(const std::string& strReq) = 0;
+    virtual bool requestWrite(const std::vector<char>& message) = 0;
 
     // Set Callback function
     bool setMessageReceivedHandler(std::function<bool(const std::string&)> func);
@@ -39,6 +39,7 @@ protected:
     asio::streambuf     m_buffer;       // message buffer
     boost::thread       m_thrd;         // thread
     bool                m_blPairing;    // is pairing or not
+    std::vector<char>   m_messageHeader;
 
     std::function<bool(const std::string&)> m_func; // Callback funtion
 };
@@ -63,7 +64,7 @@ public:
     bool startServer();
 
     // Send message
-    virtual bool requestWrite(const std::string& strReq) override;
+    virtual bool requestWrite(const std::vector<char>& message) override;
 
     // Accept socket
     void onAccept(const system::error_code& ec,
@@ -82,6 +83,10 @@ private:
     // Add socket to list
     bool handleAccept(const system::error_code& ec,
         std::shared_ptr<asio::ip::tcp::socket> sock);
+
+    bool handleReadExactly(const std::vector<char>& messageHeader, const boost::asio::ip::tcp::socket::native_handle_type unSessionID);
+
+    bool handleWriteExactly(const std::vector<char>& message, const boost::asio::ip::tcp::socket::native_handle_type unSessionID);
 
     asio::ip::tcp::acceptor m_acceptor; // Boost acceptor
     std::map<boost::asio::ip::tcp::socket::native_handle_type, std::shared_ptr<asio::ip::tcp::socket>> m_lstSocket; // Socket list
@@ -109,7 +114,7 @@ public:
     bool requestConnect(const std::string& strIP, const int& nPort);
 
     // Send message
-    virtual bool requestWrite(const std::string& strReq) override;
+    virtual bool requestWrite(const std::vector<char>& message) override;
 
     // Check if Client is connect
     bool isConnect();
@@ -121,6 +126,9 @@ private:
 
     // Recevie message
     void onMessageReceived(const boost::system::error_code& ec, std::size_t bytes_transferred);
+
+    bool handleReadExactly(const std::vector<char>& messageHeader);
+    bool handleWriteExactly(const std::vector<char> message);
 
     // Close Client socket
     void closeSocket();

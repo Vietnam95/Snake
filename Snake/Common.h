@@ -1,4 +1,5 @@
 #pragma once
+#include "stdafx.h"
 /*
 * MACRO
 */
@@ -47,6 +48,33 @@ inline std::string EToString(ControlLogicType v)
 	case ControlLogicType::Server:		return "Server";
 	case ControlLogicType::Client:		return "Client";
 	default:							return "Unknown";
+	}
+}
+
+namespace common
+{
+	// Expand message
+	template <typename MSG>
+	inline bool expandMessage(const std::vector<char> message, MSG& objMsg)
+	{
+		// If message empty do nothing and return
+		if (message.empty())
+		{
+			return false;
+		}
+
+		try
+		{
+			std::istringstream stream(std::string(message.begin(), message.end()));
+			boost::archive::binary_iarchive archive(stream, boost::archive::no_header);
+			archive >> objMsg;
+		}
+		catch (std::exception& exception)
+		{
+			std::cout << "exception: " << exception.what() << std::endl;
+			return false;
+		}
+		return true;
 	}
 }
 

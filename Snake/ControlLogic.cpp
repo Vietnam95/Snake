@@ -211,7 +211,7 @@ void ControlLogic::startGame()
 				objMsgUpdateDirecReq["Direction"] = static_cast<int>(m_lstSnake[m_enmType]->getDirection());
 
 				// send immediately, don't wait for messagequeue
-				m_pTCPConnect->requestWrite(objMsgUpdateDirecReq.to_string());
+				m_pTCPConnect->requestWrite(std::vector<char>(objMsgUpdateDirecReq.to_string().begin(), objMsgUpdateDirecReq.to_string().end()));
 
 				//m_pMessageQueued->registerMessage(objMsgUpdateDirecReq);
 			}
@@ -458,7 +458,7 @@ HandlerResult ControlLogic::onTimer_SendMessageLoop(const KeyTimer& /*timerKey*/
 	for (const auto& msg : lstMessageQueued)
 	{
 		// sent message
-		if (!m_pTCPConnect->requestWrite(msg.to_string()))
+		if (!m_pTCPConnect->requestWrite(std::vector<char>(msg.to_string().begin(), msg.to_string().end())))
 		{
 			return HandlerResult::Failure;
 		}
