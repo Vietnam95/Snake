@@ -146,11 +146,11 @@ void Snake::drawHeadnTail()
 	std::cout << ' '; // Clear the old tail
 }
 
-bool Snake::synchro(const jsoncons::json& objSynchro)
+bool Snake::synchro(/*const jsoncons::json& objSynchro*/const MsgSnake& objSnake)
 {
 	try
 	{
-		auto jsonPreTail = objSynchro.get("PreTail");
+		/*auto jsonPreTail = objSynchro.get("PreTail");
 
 		Point objSynchroTail(jsonPreTail.get("x").as_int(), jsonPreTail.get("y").as_int());
 
@@ -162,13 +162,13 @@ bool Snake::synchro(const jsoncons::json& objSynchro)
 		{
 			Point objNewPoint(point.get("x").as_int(), point.get("y").as_int());
 			lstNewPoint.push_back(objNewPoint);
-		}
+		}*/
 
 		std::lock_guard<std::mutex> lock(m_Mutex);
 
-		m_objPrevTail = objSynchroTail;
-		m_enmDerection = static_cast<Direction>(nDirection);
-		m_lstSnakePieces = lstNewPoint;
+		m_objPrevTail = objSnake.getPreTail();
+		m_enmDerection = objSnake.getDirection();
+		m_lstSnakePieces = objSnake.getSnake();
 
 		return true;
 	}

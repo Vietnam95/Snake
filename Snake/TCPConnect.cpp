@@ -21,7 +21,7 @@ void TCPConnect::startThread()
 }
 
 // set call back func to handle message
-bool TCPConnect::setMessageReceivedHandler(std::function<bool(const std::string&)> func)
+bool TCPConnect::setMessageReceivedHandler(std::function<bool(const std::vector<char>&)> func)
 {
     // Only set call back if func valid
     if (!func)
@@ -99,7 +99,7 @@ bool TCPServer::handleAccept(const system::error_code& ec,
 
         m_lstIsPairing[unSessionID] = true;
 
-        std::cout << "accept socket: " << unSessionID << std::endl;
+        //std::cout << "accept socket: " << unSessionID << std::endl;
 
         // Receive the length of the buffer
         m_messageHeader.resize(4);
@@ -203,14 +203,14 @@ void TCPServer::onMessageReceived(const boost::system::error_code& ec
     , std::size_t bytes_transferred)
 {
     auto bufs = m_buffer.data();
-    std::string result(buffers_begin(bufs), buffers_begin(bufs) + bytes_transferred);
+    //std::string result(buffers_begin(bufs), buffers_begin(bufs) + bytes_transferred);
     std::vector<char> charMsg(buffers_begin(bufs), buffers_begin(bufs) + bytes_transferred);
 
     // If call back func is set
     if (m_func)
     {
         // Call back
-        m_func(result);
+        m_func(charMsg);
     }
 
     // If Client shutdown
@@ -228,10 +228,10 @@ void TCPServer::onMessageReceived(const boost::system::error_code& ec
         }
         return;
     }
-    MsgDirectionUpdateReq objMsg;
-    common::expandMessage<MsgDirectionUpdateReq>(charMsg, objMsg);
-    std::cout << "nhan message: type : " << EToString(objMsg.getControlLogicType()) << std::endl;
-    std::cout << "nhan message: direction : " << static_cast<int>(objMsg.getDirection()) << std::endl;
+    //MsgSynchroReq objMsg;
+    //common::expandMessage<MsgSynchroReq>(charMsg, objMsg);
+    //std::cout << "nhan message: " << objMsg.toString() << std::endl;
+
     m_buffer.consume(bytes_transferred);
 
     // Receive the length of the buffer
@@ -403,7 +403,7 @@ void TCPClient::onMessageReceived(const boost::system::error_code& ec, std::size
     if (m_func)
     {
         // Callback
-        m_func(result);
+        m_func(charMsg);
     }
     if (ec == boost::asio::error::connection_reset)
     {
@@ -411,7 +411,7 @@ void TCPClient::onMessageReceived(const boost::system::error_code& ec, std::size
         return;
     }
 
-    std::cout << "nhan message: " << result << std::endl;
+    //std::cout << "nhan message: " << result << std::endl;
     m_buffer.consume(bytes_transferred);
 
     // Receive the length of the buffer

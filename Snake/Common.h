@@ -20,20 +20,54 @@ enum class Direction
 };
 
 // Each point is a part of the snake
-struct Point
+class Point
 {
+public:
+	Point() :x(0), y(0)
+	{
+
+	}
+
 	Point(int inx, int iny)
 		: x(inx)
 		, y(iny)
 	{}
 
+	friend class boost::serialization::access;
+	// Convert msg to binary
+	const std::vector<char> toBinary() const
+	{
+		std::ostringstream stream;
+		boost::archive::binary_oarchive archive(stream, boost::archive::no_header);
+		archive << *this;
+
+		std::string adapter = stream.str();
+		return std::vector<char>(adapter.begin(), adapter.end());
+	}
+
+	// Boost serialize
+	template <typename Archive>
+	void serialize(Archive& ar, const unsigned int)
+	{
+		ar& x;
+		ar& y;
+	}
+
+	// show details as string
+	const std::string toString() const
+	{
+		return boost::io::str(boost::format("(x: %1%, y: %2%)") % x % y);
+	}
+
 	int x;
 	int y;
 };
+BOOST_CLASS_VERSION(Point, 1)
 
 enum ControlLogicType
 {
-	Single = 0
+	None = 0
+	, Single
 	, Server
 	, Client
 

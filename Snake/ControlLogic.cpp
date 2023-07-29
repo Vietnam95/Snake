@@ -64,17 +64,17 @@ bool ControlLogic::initGame()
 // Draw snakeboard with WIDTH and HEIGHT was set
 void ControlLogic::drawBox()
 {
-	for (size_t i = 0; i < WIDTH; i++)
+	for (int i = 0; i < WIDTH; i++)
 		std::cout << '=';
 	ConsoleFunc::gotoxy(0, HEIGHT);
-	for (size_t i = 0; i < WIDTH; i++)
+	for (int i = 0; i < WIDTH; i++)
 		std::cout << '=';
-	for (size_t i = 1; i < HEIGHT; i++)
+	for (int i = 1; i < HEIGHT; i++)
 	{
 		ConsoleFunc::gotoxy(0, i);
 		std::cout << '|';
 	}
-	for (size_t i = 1; i < HEIGHT; i++)
+	for (int i = 1; i < HEIGHT; i++)
 	{
 		ConsoleFunc::gotoxy(WIDTH, i);
 		std::cout << '|';
@@ -84,7 +84,7 @@ void ControlLogic::drawBox()
 // Generate apple on the board
 void ControlLogic::genApple()
 {
-	srand(time(0));
+	srand(static_cast<unsigned int>(time(0)));
 	int x = rand() % (WIDTH - 1) + 1;
 	int y = rand() % (HEIGHT - 1) + 1;
 
@@ -112,9 +112,8 @@ void ControlLogic::showEndMenu()
 {
 	if (m_enmType != ControlLogicType::Single)
 	{
-		jsoncons::json objNotice;
-		objNotice["messageId"] = "WinningNotice";
-		m_pMessageQueued->registerMessage(objNotice);
+		MsgWinningNotice objWinningNotice(m_enmType);
+		m_pMessageQueued->registerMessage(MessageId::WinningNotice, objWinningNotice.toBinary());
 	}
 
 	m_blGameRunning = false;
@@ -205,15 +204,19 @@ void ControlLogic::startGame()
 			}
 			if (m_enmType == ControlLogicType::Client)
 			{
-				jsoncons::json objMsgUpdateDirecReq;
-				objMsgUpdateDirecReq["messageId"] = "updateDirectionReq";
-				objMsgUpdateDirecReq["Type"] = static_cast<int>(m_enmType);
-				objMsgUpdateDirecReq["Direction"] = static_cast<int>(m_lstSnake[m_enmType]->getDirection());
+				//jsoncons::json objMsgUpdateDirecReq;
+				//objMsgUpdateDirecReq["messageId"] = "updateDirectionReq";
+				//objMsgUpdateDirecReq["Type"] = static_cast<int>(m_enmType);
+				//objMsgUpdateDirecReq["Direction"] = static_cast<int>(m_lstSnake[m_enmType]->getDirection());
 
-				// send immediately, don't wait for messagequeue
-				m_pTCPConnect->requestWrite(std::vector<char>(objMsgUpdateDirecReq.to_string().begin(), objMsgUpdateDirecReq.to_string().end()));
+				//// send immediately, don't wait for messagequeue
+				//sendJsonMessage(std::vector<char>(objMsgUpdateDirecReq.to_string().begin(), objMsgUpdateDirecReq.to_string().end()));
 
 				//m_pMessageQueued->registerMessage(objMsgUpdateDirecReq);
+
+				MsgDirectionUpdateReq objDirectionUpdateReq(m_enmType, m_lstSnake[m_enmType]->getDirection());
+
+				sendBinaryMessage(MessageId::DirectionUpdateReq, objDirectionUpdateReq.toBinary());
 			}
 		}
 		for (const auto& pSnake : m_lstSnake)
@@ -260,7 +263,7 @@ void ControlLogic::startGame()
 }
 
 // handle synchro request from server/client
-bool ControlLogic::handleSynchroReq(const jsoncons::json& objSynchro)
+bool ControlLogic::handleSynchroReq(/*const jsoncons::json& objSynchro*/const std::vector<char>& message)
 {
 	if (m_enmType != ControlLogicType::Client)
 	{
@@ -269,16 +272,16 @@ bool ControlLogic::handleSynchroReq(const jsoncons::json& objSynchro)
 
 	try
 	{
-		auto jsonSnake = objSynchro.get("Snake").array_range();
+		//auto jsonSnake = objSynchro.get("Snake").array_range();
 
-		for (const auto& snake : jsonSnake)
+		/*for (const auto& snake : jsonSnake)
 		{
 			ControlLogicType enmType = static_cast<ControlLogicType>(snake.get("Type").as<int>());
 
 			m_lstSnake[enmType]->synchro(snake);
-		}
+		}*/
 
-		auto jsonApple = objSynchro.get("Apple").array_range();
+		/*auto jsonApple = objSynchro.get("Apple").array_range();
 		std::vector<Point> lstApple;
 		for (const auto& apple : jsonApple)
 		{
@@ -295,7 +298,24 @@ bool ControlLogic::handleSynchroReq(const jsoncons::json& objSynchro)
 		std::lock_guard<std::mutex> lock(m_Mutex);
 
 		m_lstApple = lstApple;
-		m_lstScore = lstScore;
+		m_lstScore = lstScore;*/
+
+		MsgSynchroReq objSynchroReq;
+
+		common::expandMessage<MsgSynchroReq>(message, objSynchroReq);
+
+		std::vector<MsgSnake> lstSnake = objSynchroReq.getSnake();
+
+		for (const auto& snake : lstSnake)
+		{
+			ControlLogicType enmType = snake.getControlLogicType();
+			m_lstSnake[enmType]->synchro(snake);
+		}
+
+		std::lock_guard<std::mutex> lock(m_Mutex);
+
+		m_lstApple = objSynchroReq.getApple();
+		m_lstScore = objSynchroReq.getScore();
 
 		return true;
 	}
@@ -312,7 +332,7 @@ bool ControlLogic::requestSynchro()
 		return false;
 	}
 
-	jsoncons::json objReqSynchro;
+	/*jsoncons::json objReqSynchro;
 
 	objReqSynchro["messageId"] = "SynchroReq";
 
@@ -372,21 +392,53 @@ bool ControlLogic::requestSynchro()
 	if (!m_pMessageQueued->registerMessage(objReqSynchro))
 	{
 		return false;
+	}*/
+	
+	std::vector<MsgSnake> lstSnake;
+
+	for (const auto& Snake : m_lstSnake)
+	{
+		MsgSnake objMsgSnake(Snake.first
+		, Snake.second->getDirection()
+		, Snake.second->getSnake()
+		, Snake.second->getPreTail());
+
+		lstSnake.push_back(objMsgSnake);
 	}
+
+	MsgSynchroReq objSynchroReq(lstSnake
+		, m_lstApple
+		, m_lstScore);
+
+	if (!m_pMessageQueued->registerMessage(MessageId::SynchroReq, objSynchroReq.toBinary()))
+	{
+		return false;
+	}
+
 	return true;
 }
 
-bool ControlLogic::onRecvMessage(const std::string& strMessage)
+bool ControlLogic::onRecvMessage(/*const std::string& strMessage*/const std::vector<char>& message)
 {
 	try
 	{
-		jsoncons::json objRecvReq = jsoncons::json::parse(strMessage);
+		//jsoncons::json objRecvReq = jsoncons::json::parse(strMessage);
 
-		std::string strMessageID = objRecvReq.get("messageId").as_string();
+		//std::string strMessageID = objRecvReq.get("messageId").as_string();
 
-		if (m_lstDispathTable.count(strMessageID) == 1)
+		MsgWrapBase objMsg;
+		common::expandMessage<MsgWrapBase>(message, objMsg);
+
+		MessageId enmMsgId = objMsg.getMessageId();
+
+		//if (m_lstDispathTable.count(strMessageID) == 1)
+		//{
+		//	m_lstDispathTable[strMessageID](objRecvReq);
+		//}
+
+		if (m_lstDispathTable.count(enmMsgId) == 1)
 		{
-			m_lstDispathTable[strMessageID](objRecvReq);
+			m_lstDispathTable[enmMsgId](objMsg.getMessage());
 		}
 		else
 		{
@@ -401,7 +453,7 @@ bool ControlLogic::onRecvMessage(const std::string& strMessage)
 	return true;
 }
 
-bool ControlLogic::handleWinningNotice(const jsoncons::json& /*objSynchroReq*/)
+bool ControlLogic::handleWinningNotice(/*const jsoncons::json& objWinningNotice*/const std::vector<char>& /*message*/)
 {
 	std::lock_guard<std::mutex> lock(m_Mutex);
 
@@ -413,12 +465,18 @@ bool ControlLogic::handleWinningNotice(const jsoncons::json& /*objSynchroReq*/)
 	return true;
 }
 
-bool ControlLogic::handleUpdateDirectionReq(const jsoncons::json& objUpdateDirectionReq)
+bool ControlLogic::handleUpdateDirectionReq(/*const jsoncons::json& objUpdateDirectionReq*/const std::vector<char>& message)
 {
 	try
 	{
-		ControlLogicType enmType = static_cast<ControlLogicType>(objUpdateDirectionReq.get("Type").as<int>());
-		Direction enmDirection = static_cast<Direction>(objUpdateDirectionReq.get("Direction").as<int>());
+		MsgDirectionUpdateReq objDirectionUpdateReq;
+		common::expandMessage<MsgDirectionUpdateReq>(message, objDirectionUpdateReq);
+
+	/*	ControlLogicType enmType = static_cast<ControlLogicType>(objUpdateDirectionReq.get("Type").as<int>());
+		Direction enmDirection = static_cast<Direction>(objUpdateDirectionReq.get("Direction").as<int>());*/
+
+		ControlLogicType enmType = objDirectionUpdateReq.getControlLogicType();
+		Direction enmDirection = objDirectionUpdateReq.getDirection();
 
 		std::lock_guard<std::mutex> lock(m_Mutex);
 		m_lstSnake[enmType]->updateDirection(enmDirection);
@@ -434,9 +492,13 @@ bool ControlLogic::handleUpdateDirectionReq(const jsoncons::json& objUpdateDirec
 
 void ControlLogic::createDispathTable()
 {
-	m_lstDispathTable[msg::id::D_SynchroReq] = std::bind(&ControlLogic::handleSynchroReq, this, std::placeholders::_1);
-	m_lstDispathTable[msg::id::D_WinningNotice] = std::bind(&ControlLogic::handleWinningNotice, this, std::placeholders::_1);
-	m_lstDispathTable[msg::id::D_UpdateDirectionReq] = std::bind(&ControlLogic::handleUpdateDirectionReq, this, std::placeholders::_1);
+	//m_lstDispathTable[msg::id::D_SynchroReq] = std::bind(&ControlLogic::handleSynchroReq, this, std::placeholders::_1);
+	//m_lstDispathTable[msg::id::D_WinningNotice] = std::bind(&ControlLogic::handleWinningNotice, this, std::placeholders::_1);
+	//m_lstDispathTable[msg::id::D_UpdateDirectionReq] = std::bind(&ControlLogic::handleUpdateDirectionReq, this, std::placeholders::_1);
+
+	m_lstDispathTable[MessageId::SynchroReq] = std::bind(&ControlLogic::handleSynchroReq, this, std::placeholders::_1);
+	m_lstDispathTable[MessageId::WinningNotice] = std::bind(&ControlLogic::handleWinningNotice, this, std::placeholders::_1);
+	m_lstDispathTable[MessageId::DirectionUpdateReq] = std::bind(&ControlLogic::handleUpdateDirectionReq, this, std::placeholders::_1);
 }
 
 HandlerResult ControlLogic::onTimer_SendMessageLoop(const KeyTimer& /*timerKey*/, const boost::posix_time::milliseconds& /*timeoutValue*/)
@@ -447,18 +509,28 @@ HandlerResult ControlLogic::onTimer_SendMessageLoop(const KeyTimer& /*timerKey*/
 		return HandlerResult::Failure;
 	}
 
-	if (m_enmType == ControlLogicType::Server)
-	{
-		// send req synchro to Server->Client
-		requestSynchro();
-	}
-	// Get queued message
-	std::deque<jsoncons::json> lstMessageQueued = m_pMessageQueued->queueMsgHandling();
+	// send req synchro to Server->Client
+	requestSynchro();
 
-	for (const auto& msg : lstMessageQueued)
+	// Get queued json message
+	std::deque<jsoncons::json> lstJsonMessageQueued = m_pMessageQueued->queueJsonMsgHandling();
+
+	for (const auto& jsonMsg : lstJsonMessageQueued)
 	{
 		// sent message
-		if (!m_pTCPConnect->requestWrite(std::vector<char>(msg.to_string().begin(), msg.to_string().end())))
+		if (!sendJsonMessage(jsonMsg))
+		{
+			return HandlerResult::Failure;
+		}
+	}
+
+	// Get queued binary message
+	std::deque<std::pair<MessageId, std::vector<char>>> lstBinaryMessageQueued = m_pMessageQueued->queueBinaryMsgHandling();
+
+	for (const auto& binaryMsg : lstBinaryMessageQueued)
+	{
+		// sent message
+		if (!sendBinaryMessage(binaryMsg.first, binaryMsg.second))
 		{
 			return HandlerResult::Failure;
 		}
@@ -467,6 +539,31 @@ HandlerResult ControlLogic::onTimer_SendMessageLoop(const KeyTimer& /*timerKey*/
 	m_pMessageQueued->clearQueue();
 
 	return HandlerResult::RestartTimer;
+}
+
+
+bool ControlLogic::sendJsonMessage(const jsoncons::json& objJsonMsg)
+{
+	// sent message
+	if (!m_pTCPConnect->requestWrite(std::vector<char>(objJsonMsg.to_string().begin(), objJsonMsg.to_string().end())))
+	{
+		return false;
+	}
+
+	return true;
+}
+
+bool ControlLogic::sendBinaryMessage(const MessageId enmMsgId, const std::vector<char>& charMsg)
+{
+	MsgWrapBase objWrapBase(enmMsgId, charMsg);
+
+	// sent message
+	if (!m_pTCPConnect->requestWrite(objWrapBase.toBinary()))
+	{
+		return false;
+	}
+
+	return true;
 }
 
 

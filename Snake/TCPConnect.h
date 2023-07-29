@@ -26,7 +26,7 @@ public:
     virtual bool requestWrite(const std::vector<char>& message) = 0;
 
     // Set Callback function
-    bool setMessageReceivedHandler(std::function<bool(const std::string&)> func);
+    bool setMessageReceivedHandler(std::function<bool(const std::vector<char>&)> func);
 
     // Check if Client with Server is pairing
     virtual bool isPairing() = 0;
@@ -41,7 +41,7 @@ protected:
     bool                m_blPairing;    // is pairing or not
     std::vector<char>   m_messageHeader;
 
-    std::function<bool(const std::string&)> m_func; // Callback funtion
+    std::function<bool(const std::vector<char>&)> m_func; // Callback funtion
 };
 
 // Class TCP Server
