@@ -3,6 +3,7 @@
 
 #include "SystemCommon.h"
 #include "Common.h"
+#include "MessageDef.h"
 
 class Snake
 {
@@ -39,7 +40,7 @@ public:
 	// Redraw head & tail to make the snake move
 	void drawHeadnTail();
 
-	bool synchro(const jsoncons::json& objSynchro);
+	bool synchro(/*const jsoncons::json& objSynchro*/const MsgSnake& objSnake);
 
 	const Point getPreTail();
 	const std::vector<Point> getSnake();

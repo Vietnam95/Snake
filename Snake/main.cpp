@@ -4,6 +4,7 @@
 #include "Common.h"
 #include "ControlLogic.h"
 #include "TCPConnect.h"
+#include "MessageDef.h"
 
 /*
  * Let's the game start
@@ -20,6 +21,9 @@ ControlLogicType showStartMenu(std::shared_ptr<TCPServer> pServer, std::shared_p
 	std::cout << "3. Quit" << std::endl;
 	std::cout << "Your choice: ";
 	int option;
+
+	ControlLogicType enmControlLogicType = ControlLogicType::None;
+
 	std::cin >> option;
 	if (option == 1)
 	{
@@ -38,7 +42,7 @@ ControlLogicType showStartMenu(std::shared_ptr<TCPServer> pServer, std::shared_p
 		std::cout << "GO!";
 		Sleep(1000);
 
-		return ControlLogicType::Single;
+		enmControlLogicType = ControlLogicType::Single;
 	}
 	else if (option == 2)
 	{
@@ -51,18 +55,22 @@ ControlLogicType showStartMenu(std::shared_ptr<TCPServer> pServer, std::shared_p
 		if (nChoose == 1)
 		{
 			pServer->startServer();
-			return ControlLogicType::Server;
+			enmControlLogicType = ControlLogicType::Server;
 		}
 		else if (nChoose == 2)
 		{
 			pClient->init();
 			pClient->requestConnect("127.0.0.1", 9003);
 
-			return ControlLogicType::Client;
+			enmControlLogicType = ControlLogicType::Client;
 		}
 	}
 	else if (option == 3)
-		exit(1);
+	{
+		enmControlLogicType = ControlLogicType::None;
+	}
+
+	return enmControlLogicType;
 }
 int main()
 {
@@ -93,7 +101,7 @@ int main()
 			}
 			else
 			{
-				pServer->requestWrite(cmd);
+				pServer->requestWrite(std::vector<char>(cmd.begin(), cmd.end()));
 			}
 		}*/
 	case ControlLogicType::Client:
@@ -109,7 +117,16 @@ int main()
 			}
 			else
 			{
-				pClient->requestWrite(cmd);
+				std::map<ControlLogicType, uint32_t> lstScore;
+				lstScore[ControlLogicType::Server] = 10;
+				lstScore[ControlLogicType::Client] = 20;
+				MsgSynchroReq msg(ControlLogicType::Server, Direction::left
+					, std::vector<Point>{Point(0,0), Point(1, 1)}
+				, Point(2,2)
+					, std::vector<Point>{Point(3, 3), Point(4, 4)}
+				, lstScore);
+
+				pClient->requestWrite(msg.toBinary());
 			}
 		}*/
 	default:

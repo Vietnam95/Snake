@@ -2,12 +2,14 @@
 #include "stdafx.h"
 
 #include "TCPConnect.h"
+#include "MessageDef.h"
+#include "Common.h"
 
 using namespace boost;
 
 /**************************************** TCPConnect ******************************************/
 // Contructor
-TCPConnect::TCPConnect()
+TCPConnect::TCPConnect():m_messageHeader(4)
 {
 }
 
@@ -19,7 +21,7 @@ void TCPConnect::startThread()
 }
 
 // set call back func to handle message
-bool TCPConnect::setMessageReceivedHandler(std::function<bool(const std::string&)> func)
+bool TCPConnect::setMessageReceivedHandler(std::function<bool(const std::vector<char>&)> func)
 {
     // Only set call back if func valid
     if (!func)
@@ -99,9 +101,10 @@ bool TCPServer::handleAccept(const system::error_code& ec,
 
         //std::cout << "accept socket: " << unSessionID << std::endl;
 
-        // Read message
-        asio::async_read_until(*pSocket.get(),
-            m_buffer, '\n', std::bind(&TCPServer::onMessageReceived, this, std::placeholders::_1, unSessionID, std::placeholders::_2));
+        // Receive the length of the buffer
+        m_messageHeader.resize(4);
+        boost::asio::async_read(*pSocket.get(), boost::asio::buffer(m_messageHeader)
+            , std::bind(&TCPServer::handleReadExactly, this, std::ref(m_messageHeader), unSessionID));
     }
     else
     {
@@ -114,8 +117,21 @@ bool TCPServer::handleAccept(const system::error_code& ec,
     return true;
 }
 
+bool TCPServer::handleReadExactly(const std::vector<char>& messageHeader, const boost::asio::ip::tcp::socket::native_handle_type unSessionID)
+{
+    std::vector<char> msgHeader = messageHeader;
+
+    // Interpret the message header to get the message length
+    int32_t msglength = *reinterpret_cast<int32_t*>(msgHeader.data());
+
+    // Read message
+    asio::async_read(*m_lstSocket[unSessionID].get(),
+        m_buffer, boost::asio::transfer_exactly(msglength), std::bind(&TCPServer::onMessageReceived, this, std::placeholders::_1, unSessionID, std::placeholders::_2));
+    return true;
+}
+
 // Send message
-bool TCPServer::requestWrite(const std::string& strReq)
+bool TCPServer::requestWrite(const std::vector<char>& message)
 {
     // On Server, send to all client
     for (const auto& pSocket : m_lstSocket)
@@ -125,10 +141,31 @@ bool TCPServer::requestWrite(const std::string& strReq)
             return false;
         }
         boost::system::error_code error;
-        std::string cmd = strReq + "\n";
 
-        boost::asio::write(*pSocket.second.get(), boost::asio::buffer(cmd), error);
+        m_messageHeader.resize(4);
+
+        // Set the message length in the header
+        std::size_t message_length = message.size();
+        std::memcpy(m_messageHeader.data(), &message_length, sizeof(message_length));
+
+        // Send the length of the buffer
+        boost::asio::async_write(*pSocket.second.get(), boost::asio::buffer(m_messageHeader)
+            , std::bind(&TCPServer::handleWriteExactly, this, message, pSocket.first));
     }
+    return true;
+}
+
+bool TCPServer::handleWriteExactly(const std::vector<char>& message, const boost::asio::ip::tcp::socket::native_handle_type unSessionID)
+{
+    boost::system::error_code error;
+    // Send message
+    boost::asio::write(*m_lstSocket[unSessionID].get(), boost::asio::buffer(message), error);
+
+    if (error)
+    {
+        return false;
+    }
+
     return true;
 }
 
@@ -136,7 +173,8 @@ bool TCPServer::requestWrite(const std::string& strReq)
 void TCPServer::stop()
 {
     // Send shutdown message to client
-    requestWrite("Srv.shutdown");
+    std::string strShutdown = "Srv.shutdown";
+    requestWrite(std::vector<char>(strShutdown.begin(), strShutdown.end()));
     m_thrd.interrupt();
 
     // Close all Client
@@ -165,13 +203,14 @@ void TCPServer::onMessageReceived(const boost::system::error_code& ec
     , std::size_t bytes_transferred)
 {
     auto bufs = m_buffer.data();
-    std::string result(buffers_begin(bufs), buffers_begin(bufs) + bytes_transferred);
+    //std::string result(buffers_begin(bufs), buffers_begin(bufs) + bytes_transferred);
+    std::vector<char> charMsg(buffers_begin(bufs), buffers_begin(bufs) + bytes_transferred);
 
     // If call back func is set
     if (m_func)
     {
         // Call back
-        m_func(result);
+        m_func(charMsg);
     }
 
     // If Client shutdown
@@ -189,12 +228,17 @@ void TCPServer::onMessageReceived(const boost::system::error_code& ec
         }
         return;
     }
-    //std::cout << "nhan message: " << result << std::endl;
+    //MsgSynchroReq objMsg;
+    //common::expandMessage<MsgSynchroReq>(charMsg, objMsg);
+    //std::cout << "nhan message: " << objMsg.toString() << std::endl;
+
     m_buffer.consume(bytes_transferred);
 
-    // Read another message
-    asio::async_read_until(*m_lstSocket[sessionID].get(),
-        m_buffer, '\n', std::bind(&TCPServer::onMessageReceived, this, std::placeholders::_1, sessionID, std::placeholders::_2));
+    // Receive the length of the buffer
+    m_messageHeader.resize(4);
+
+    boost::asio::async_read(*m_lstSocket[sessionID].get(), boost::asio::buffer(m_messageHeader)
+        , std::bind(&TCPServer::handleReadExactly, this, std::ref(m_messageHeader), sessionID));
 }
 
 // Check if server with client is pairing
@@ -255,18 +299,23 @@ bool TCPClient::requestConnect(const std::string& strIP, const int& nPort)
 }
 
 // Send message to Server
-bool TCPClient::requestWrite(const std::string& strReq)
+bool TCPClient::requestWrite(const std::vector<char>& message)
 {
     // If socket is not open
     if (!m_pSocket->is_open())
     {
         return false;
     }
-    boost::system::error_code error;
-    std::string cmd = strReq + "\n";
 
-    // Send message
-    boost::asio::write(*m_pSocket.get(), boost::asio::buffer(cmd), error);
+    m_messageHeader.resize(4);
+
+    // Set the message length in the header
+    std::size_t message_length = message.size();
+    std::memcpy(m_messageHeader.data(), &message_length, sizeof(message_length));
+
+    // Send the length of the buffer
+    boost::asio::async_write(*m_pSocket.get(), boost::asio::buffer(m_messageHeader)
+    , std::bind(&TCPClient::handleWriteExactly, this, message));
 
     return true;
 }
@@ -283,11 +332,39 @@ bool TCPClient::onConnectCompleted(const system::error_code& ec)
     {
         m_blPairing = true;
 
-        // Wait read message
-        asio::async_read_until(*m_pSocket.get(),
-            m_buffer, '\n', std::bind(&TCPClient::onMessageReceived, this, std::placeholders::_1, std::placeholders::_2));
+        // Receive the length of the buffer
+        m_messageHeader.resize(4);
+        boost::asio::async_read(*m_pSocket.get(), boost::asio::buffer(m_messageHeader)
+            , std::bind(&TCPClient::handleReadExactly, this, std::ref(m_messageHeader)));
+
         return true;
     }
+}
+
+bool TCPClient::handleReadExactly(const std::vector<char>& messageHeader)
+{
+    std::vector<char> msgHeader = messageHeader;
+
+    // Interpret the message header to get the message length
+    int32_t msglength = *reinterpret_cast<int32_t*>(msgHeader.data());
+
+    // Read message
+    asio::async_read(*m_pSocket.get(),
+        m_buffer, boost::asio::transfer_exactly(msglength), std::bind(&TCPClient::onMessageReceived, this, std::placeholders::_1, std::placeholders::_2));
+    return true;
+}
+
+bool TCPClient::handleWriteExactly(const std::vector<char> message)
+{
+    boost::system::error_code error;
+    // Send message
+    boost::asio::write(*m_pSocket.get(), boost::asio::buffer(message), error);
+    if (error)
+    {
+        return false;
+    }
+
+    return true;
 }
 
 // Check if Client is connect to Server
@@ -312,6 +389,7 @@ void TCPClient::onMessageReceived(const boost::system::error_code& ec, std::size
 {
     auto bufs = m_buffer.data();
     std::string result(buffers_begin(bufs), buffers_begin(bufs) + bytes_transferred);
+    std::vector<char> charMsg(buffers_begin(bufs), buffers_begin(bufs) + bytes_transferred);
 
     // If message shutdown from Server
     if (result == "Srv.shutdown")
@@ -325,7 +403,7 @@ void TCPClient::onMessageReceived(const boost::system::error_code& ec, std::size
     if (m_func)
     {
         // Callback
-        m_func(result);
+        m_func(charMsg);
     }
     if (ec == boost::asio::error::connection_reset)
     {
@@ -336,9 +414,10 @@ void TCPClient::onMessageReceived(const boost::system::error_code& ec, std::size
     //std::cout << "nhan message: " << result << std::endl;
     m_buffer.consume(bytes_transferred);
 
-    // Wait read message
-    asio::async_read_until(*m_pSocket.get(),
-        m_buffer, '\n', std::bind(&TCPClient::onMessageReceived, this, std::placeholders::_1, std::placeholders::_2));
+    // Receive the length of the buffer
+    m_messageHeader.resize(4);
+    boost::asio::async_read(*m_pSocket.get(), boost::asio::buffer(m_messageHeader)
+        , std::bind(&TCPClient::handleReadExactly, this, std::ref(m_messageHeader)));
 }
 
 // Check if Client is pairing with Server

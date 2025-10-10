@@ -6,6 +6,7 @@
 #include "MessageID.h"
 #include "Timer.h"
 #include "MessageQueued.h"
+#include "MessageDef.h"
 
 // Timer resiger
 #define ONTIMER_REG_HANDLE(timerid, func) m_pTimer->registerTimer(timerid, std::bind(&ControlLogic::func, this, std::placeholders::_1, std::placeholders::_2))
@@ -21,13 +22,13 @@ public:
 	void startGame();
 
 	/*********************** Handle request **************************/
-	bool handleSynchroReq(const jsoncons::json& objSynchroReq);
-	bool handleWinningNotice(const jsoncons::json& objSynchroReq);
-	bool handleUpdateDirectionReq(const jsoncons::json& objUpdateDirectionReq);
+	bool handleSynchroReq(/*const jsoncons::json& objSynchroReq*/const std::vector<char>& message);
+	bool handleWinningNotice(/*const jsoncons::json& objWinningNotice*/const std::vector<char>& /*message*/);
+	bool handleUpdateDirectionReq(/*const jsoncons::json& objUpdateDirectionReq*/const std::vector<char>& message);
 	bool requestSynchro();
 
 	// Receive message
-	bool onRecvMessage(const std::string& strMessage);
+	bool onRecvMessage(/*const std::string& strMessage*/const std::vector<char>& message);
 private:
 	bool initGame();
 	void drawBox();
@@ -35,6 +36,9 @@ private:
 	void displayScore();
 	void showEndMenu();
 	void createDispathTable();
+	bool sendJsonMessage(const jsoncons::json& objJsonMsg);
+
+	bool sendBinaryMessage(const MessageId enmMsgId, const std::vector<char>& charMsg);
 
 	// Timer for send message
 	HandlerResult onTimer_SendMessageLoop(const KeyTimer& timerKey, const boost::posix_time::milliseconds& timeoutValue);
@@ -42,11 +46,12 @@ private:
 protected:
 	std::map<ControlLogicType, std::shared_ptr<Snake>> m_lstSnake;	// Snake list (Multi mode)
 
-	std::map<std::string, std::function<bool(const jsoncons::json&)>> m_lstDispathTable;	// Dispath message table
+	//std::map<std::string, std::function<bool(const jsoncons::json&)>> m_lstDispathTable;	// Dispath message table
+	std::map<MessageId, std::function<bool(const std::vector<char>&)>> m_lstDispathTable;	// Dispath message table
 
 	std::vector<Point> m_lstApple;	// Apple list
 
-	std::map<ControlLogicType, int> m_lstScore;	// Score list
+	std::map<ControlLogicType, uint32_t> m_lstScore;	// Score list
 
 	int m_unSpeed;	// Speed of game
 
