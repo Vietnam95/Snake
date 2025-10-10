@@ -9,7 +9,7 @@ bool MessageQueued::registerMessage(const jsoncons::json& objMsg)
 {
 	try
 	{
-		std::string strCheckValid = objMsg.get("messageid").to_string();
+		std::string strCheckValid = objMsg["messageid"].to_string();
 		if (!strCheckValid.empty())
 		{
 			m_lstJsonMessage.push_back(objMsg);
@@ -22,6 +22,7 @@ bool MessageQueued::registerMessage(const jsoncons::json& objMsg)
 	{
 		return false;
 	}
+	return true;
 }
 
 bool MessageQueued::registerMessage(const MessageId enmMsgId, const std::vector<char>& charMsg)

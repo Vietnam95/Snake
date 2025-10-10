@@ -272,28 +272,28 @@ bool ControlLogic::handleSynchroReq(/*const jsoncons::json& objSynchro*/const st
 
 	try
 	{
-		//auto jsonSnake = objSynchro.get("Snake").array_range();
+		//auto jsonSnake = objSynchro["Snake"].array_range();
 
 		/*for (const auto& snake : jsonSnake)
 		{
-			ControlLogicType enmType = static_cast<ControlLogicType>(snake.get("Type").as<int>());
+			ControlLogicType enmType = static_cast<ControlLogicType>(snake["Type"].as<int>());
 
 			m_lstSnake[enmType]->synchro(snake);
 		}*/
 
-		/*auto jsonApple = objSynchro.get("Apple").array_range();
+		/*auto jsonApple = objSynchro["Apple"].array_range();
 		std::vector<Point> lstApple;
 		for (const auto& apple : jsonApple)
 		{
-			Point objNewApple(apple.get("x").as<int>(), apple.get("y").as<int>());
+			Point objNewApple(apple["x"].as<int>(), apple["y"].as<int>());
 			lstApple.push_back(objNewApple);
 		}
 
-		auto jsonScore = objSynchro.get("Score");
+		auto jsonScore = objSynchro["Score"];
 		std::map<ControlLogicType, int> lstScore;
 
-		lstScore[ControlLogicType::Server] = jsonScore.get(EToString(ControlLogicType::Server)).as<int>();
-		lstScore[ControlLogicType::Client] = jsonScore.get(EToString(ControlLogicType::Client)).as<int>();
+		lstScore[ControlLogicType::Server] = jsonScore[EToString(ControlLogicType::Server)].as<int>();
+		lstScore[ControlLogicType::Client] = jsonScore[EToString(ControlLogicType::Client)].as<int>();
 
 		std::lock_guard<std::mutex> lock(m_Mutex);
 
@@ -424,7 +424,7 @@ bool ControlLogic::onRecvMessage(/*const std::string& strMessage*/const std::vec
 	{
 		//jsoncons::json objRecvReq = jsoncons::json::parse(strMessage);
 
-		//std::string strMessageID = objRecvReq.get("messageId").as_string();
+		//std::string strMessageID = objRecvReq["messageId"].as_string();
 
 		MsgWrapBase objMsg;
 		common::expandMessage<MsgWrapBase>(message, objMsg);

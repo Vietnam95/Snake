@@ -150,17 +150,17 @@ bool Snake::synchro(/*const jsoncons::json& objSynchro*/const MsgSnake& objSnake
 {
 	try
 	{
-		/*auto jsonPreTail = objSynchro.get("PreTail");
+		/*auto jsonPreTail = objSynchro["PreTail"];
 
-		Point objSynchroTail(jsonPreTail.get("x").as_int(), jsonPreTail.get("y").as_int());
+		Point objSynchroTail(jsonPreTail["x"].as<int>(), jsonPreTail["y"].as<int>());
 
-		int nDirection = objSynchro.get("Direction").as_int();
+		int nDirection = objSynchro["Direction"].as<int>();
 
-		auto lstPoint = objSynchro.get("Point").array_range();
+		auto lstPoint = objSynchro["Point"].array_range();
 		std::vector<Point> lstNewPoint;
 		for (const auto& point: lstPoint)
 		{
-			Point objNewPoint(point.get("x").as_int(), point.get("y").as_int());
+			Point objNewPoint(point["x"].as<int>(), point["y"].as<int>());
 			lstNewPoint.push_back(objNewPoint);
 		}*/
 
